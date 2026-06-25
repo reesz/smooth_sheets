@@ -273,12 +273,18 @@ class _OutgoingTransition extends StatefulWidget {
     required this.endOffset,
     required this.animation,
     required this.child,
+    this.cornerRadius = _minimizedSheetCornerRadius,
+    this.scale = _minimizedSheetScale,
+    this.curve = _outgoingTransitionCurve,
     this.overlayColor,
   });
 
   final Offset endOffset;
   final Animation<double> animation;
   final Widget child;
+  final double cornerRadius;
+  final double scale;
+  final Curve curve;
   final Color? overlayColor;
 
   @override
@@ -293,17 +299,18 @@ class _OutgoingTransitionState extends State<_OutgoingTransition> {
     super.initState();
     _animation = CurvedAnimation(
       parent: widget.animation,
-      curve: _outgoingTransitionCurve,
+      curve: widget.curve,
     );
   }
 
   @override
   void didUpdateWidget(_OutgoingTransition oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.animation != widget.animation) {
+    if (oldWidget.animation != widget.animation ||
+        oldWidget.curve != widget.curve) {
       _animation = CurvedAnimation(
         parent: widget.animation,
-        curve: _outgoingTransitionCurve,
+        curve: widget.curve,
       );
     }
   }
@@ -313,11 +320,11 @@ class _OutgoingTransitionState extends State<_OutgoingTransition> {
     return _TransformTransition(
       animation: _animation,
       offsetTween: Tween(begin: Offset.zero, end: widget.endOffset),
-      scaleTween: Tween(begin: 1, end: _minimizedSheetScale),
+      scaleTween: Tween(begin: 1, end: widget.scale),
       child: _ClipRRectTransition(
         radius: Tween(
           begin: 0.0,
-          end: _minimizedSheetCornerRadius,
+          end: widget.cornerRadius,
         ).animate(_animation),
         child: widget.overlayColor != null
             ? _ToningOverlay(
@@ -515,6 +522,61 @@ abstract class _BaseCupertinoModalSheetRoute<T> extends PageRoute<T>
   /// {@endtemplate}
   Color? get overlayColor;
 
+  // ignore: lines_longer_than_80_chars
+  /// {@template cupertino._BaseCupertinoModalSheetRoute.previousRouteCornerRadius}
+  /// The corner radius applied to the previous route during
+  /// the outgoing transition.
+  ///
+  /// When a Cupertino-style modal sheet is pushed, the route
+  /// below it is scaled down and clipped with rounded corners.
+  /// This value controls the target corner radius of that clip
+  /// animation.
+  ///
+  /// Defaults to 12.0. Set a higher value (e.g. 55.0) to match
+  /// the physical screen corner radius on modern devices.
+  /// {@endtemplate}
+  double get previousRouteCornerRadius;
+
+  /// {@template cupertino._BaseCupertinoModalSheetRoute.previousRouteScale}
+  /// The scale factor applied to the previous route during the
+  /// outgoing transition.
+  ///
+  /// When a Cupertino-style modal sheet is pushed, the route
+  /// below it is scaled down. This value controls the target
+  /// scale of that animation, where 1.0 means no scaling and
+  /// lower values scale the route down further.
+  ///
+  /// Defaults to 0.92.
+  /// {@endtemplate}
+  double get previousRouteScale;
+
+  /// {@template cupertino._BaseCupertinoModalSheetRoute.previousRouteEndOffset}
+  /// The translation offset applied to the previous route at the
+  /// end of the outgoing transition.
+  ///
+  /// When a Cupertino-style modal sheet is pushed, the route
+  /// below it is translated by this offset while being scaled
+  /// down. By default the previous route is translated down by
+  /// the status bar height so that the scaled content aligns
+  /// with the top of the screen.
+  ///
+  /// Set a custom [Offset] to override this behavior, or leave
+  /// as `null` to use the default.
+  /// {@endtemplate}
+  Offset? get previousRouteEndOffset;
+
+  // ignore: lines_longer_than_80_chars
+  /// {@template cupertino._BaseCupertinoModalSheetRoute.previousRouteTransitionCurve}
+  /// The animation curve applied to the previous route during
+  /// the outgoing transition.
+  ///
+  /// Controls the easing of the scale, translation, and corner
+  /// radius animations on the route below this sheet.
+  ///
+  /// Defaults to [Curves.easeIn].
+  /// {@endtemplate}
+  Curve get previousRouteTransitionCurve;
+
   /// The animation controller that drives the outgoing transition
   /// of this route.
   ///
@@ -585,7 +647,11 @@ abstract class _BaseCupertinoModalSheetRoute<T> extends PageRoute<T>
     ) {
       return _OutgoingTransition(
         animation: previousRouteEntry.outgoingTransitionController,
-        endOffset: Offset(0, MediaQuery.viewPaddingOf(context).top),
+        endOffset: previousRouteEndOffset ??
+            Offset(0, MediaQuery.viewPaddingOf(context).top),
+        cornerRadius: previousRouteCornerRadius,
+        scale: previousRouteScale,
+        curve: previousRouteTransitionCurve,
         overlayColor: overlayColor,
         child: child!,
       );
@@ -603,6 +669,9 @@ abstract class _BaseCupertinoModalSheetRoute<T> extends PageRoute<T>
       child: _OutgoingTransition(
         animation: _outgoingTransitionController,
         endOffset: const Offset(0, -1 * _sheetTopInset),
+        cornerRadius: previousRouteCornerRadius,
+        scale: previousRouteScale,
+        curve: previousRouteTransitionCurve,
         overlayColor: overlayColor,
         child: _buildSheetInternal(context),
       ),
@@ -646,6 +715,10 @@ class CupertinoModalSheetPage<T> extends Page<T> {
     this.transitionCurve = _incomingTransitionCurve,
     this.swipeDismissSensitivity = const SwipeDismissSensitivity(),
     this.overlayColor,
+    this.previousRouteCornerRadius = _minimizedSheetCornerRadius,
+    this.previousRouteScale = _minimizedSheetScale,
+    this.previousRouteEndOffset,
+    this.previousRouteTransitionCurve = _outgoingTransitionCurve,
     this.viewportBuilder,
     required this.child,
   });
@@ -674,6 +747,19 @@ class CupertinoModalSheetPage<T> extends Page<T> {
 
   /// {@macro cupertino._BaseCupertinoModalSheetRoute.overlayColor}
   final Color? overlayColor;
+
+  /// {@macro cupertino._BaseCupertinoModalSheetRoute.previousRouteCornerRadius}
+  final double previousRouteCornerRadius;
+
+  /// {@macro cupertino._BaseCupertinoModalSheetRoute.previousRouteScale}
+  final double previousRouteScale;
+
+  /// {@macro cupertino._BaseCupertinoModalSheetRoute.previousRouteEndOffset}
+  final Offset? previousRouteEndOffset;
+
+  // ignore: lines_longer_than_80_chars
+  /// {@macro cupertino._BaseCupertinoModalSheetRoute.previousRouteTransitionCurve}
+  final Curve previousRouteTransitionCurve;
 
   @override
   Route<T> createRoute(BuildContext context) {
@@ -720,6 +806,19 @@ class _PageBasedCupertinoModalSheetRoute<T>
   Color? get overlayColor => _page.overlayColor;
 
   @override
+  double get previousRouteCornerRadius => _page.previousRouteCornerRadius;
+
+  @override
+  double get previousRouteScale => _page.previousRouteScale;
+
+  @override
+  Offset? get previousRouteEndOffset => _page.previousRouteEndOffset;
+
+  @override
+  Curve get previousRouteTransitionCurve =>
+      _page.previousRouteTransitionCurve;
+
+  @override
   String get debugLabel => '${super.debugLabel}(${_page.name})';
 
   @override
@@ -753,6 +852,10 @@ class CupertinoModalSheetRoute<T> extends _BaseCupertinoModalSheetRoute<T> {
     this.transitionCurve = _incomingTransitionCurve,
     this.swipeDismissSensitivity = const SwipeDismissSensitivity(),
     this.overlayColor,
+    this.previousRouteCornerRadius = _minimizedSheetCornerRadius,
+    this.previousRouteScale = _minimizedSheetScale,
+    this.previousRouteEndOffset,
+    this.previousRouteTransitionCurve = _outgoingTransitionCurve,
     this.barrierBuilder,
   });
 
@@ -786,6 +889,18 @@ class CupertinoModalSheetRoute<T> extends _BaseCupertinoModalSheetRoute<T> {
 
   @override
   final Color? overlayColor;
+
+  @override
+  final double previousRouteCornerRadius;
+
+  @override
+  final double previousRouteScale;
+
+  @override
+  final Offset? previousRouteEndOffset;
+
+  @override
+  final Curve previousRouteTransitionCurve;
 
   @override
   final ModalSheetBarrierBuilder<T>? barrierBuilder;
